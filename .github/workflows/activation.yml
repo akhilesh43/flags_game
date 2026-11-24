@@ -21,7 +21,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: manual-activation-file
-          path: |
-            *.alf
-            **/*.alf
-
+          path: ${{ steps.getActivationFile.outputs.filePath }}
+          if-no-files-found: error

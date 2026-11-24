@@ -22,6 +22,17 @@ jobs:
         with:
           lfs: true
 
+      - name: Check Unity license secret
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ]; then
+            echo "::error::UNITY_LICENSE secret set nahi hai. Repo Settings > Secrets and variables > Actions mein .ulf ka content paste karo."
+            exit 1
+          fi
+          echo "License secret mil gaya (length: ${#UNITY_LICENSE})"
+
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
@@ -34,6 +45,7 @@ jobs:
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
