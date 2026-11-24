@@ -130,3 +130,4 @@ This repository includes a fully configured **GitHub Actions CI/CD pipeline** (`
 3. Recommended Unity version: **Unity 2022.3 LTS** (or Unity 2021.3+ / Unity 6).
 4. Open any scene and press **Play** — the game boots automatically without any manual scene setup!
 5. To build an APK locally: click the top menu **LovMates > Build APK**.
+
