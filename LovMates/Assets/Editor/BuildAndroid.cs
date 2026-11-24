@@ -1,54 +1,66 @@
 #if UNITY_EDITOR
 using System.IO;
+using System.Linq;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace LovMates.EditorTools
 {
-    /// <summary>Menu: LovMates > Build APK.   CLI: -executeMethod LovMates.EditorTools.BuildAndroid.BuildCI</summary>
     public static class BuildAndroid
     {
-        const string ScenePath = "Assets/Scenes/Main.unity";
+        private const string OutputPath = "Builds/LovMates.apk";
 
         [MenuItem("LovMates/Build APK")]
-        public static void BuildMenu() { Build(false); }
-
-        public static void BuildCI() { Build(true); }
-
-        static void Build(bool batch)
+        public static void BuildMenu()
         {
-            // 1. an (empty) scene is enough - GameManager boots itself at runtime
-            Directory.CreateDirectory("Assets/Scenes");
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            BuildCI();
+        }
 
-            // 2. player settings
-            PlayerSettings.companyName = "LovMates";
-            PlayerSettings.productName = "LovMates";
-            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.lovmates.ourlittleworld");
-            PlayerSettings.bundleVersion = "1.0.0";
-            PlayerSettings.Android.bundleVersionCode = 1;
-            PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
-            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel23;
-            PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
+        public static void BuildCI()
+        {
+            // Build settings mein enabled scenes lo
+            string[] scenes = EditorBuildSettings.scenes
+                .Where(s => s.enabled)
+                .Select(s => s.path)
+                .ToArray();
+
+            if (scenes.Length == 0)
+            {
+                // Fallback: Agar koi scene configured nahi hai toh default scene bana kar register karo
+                const string fallbackScene = "Assets/Scenes/Main.unity";
+                Directory.CreateDirectory("Assets/Scenes");
+                if (!File.Exists(fallbackScene))
+                {
+                    var newScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                    EditorSceneManager.SaveScene(newScene, fallbackScene);
+                }
+                EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(fallbackScene, true) };
+                scenes = new[] { fallbackScene };
+            }
+
+            // Builds folder na ho toh bana do
+            Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
+
+            // APK format (not AAB)
             EditorUserBuildSettings.buildAppBundle = false;
             EditorUserBuildSettings.androidBuildSystem = AndroidBuildSystem.Gradle;
 
-            // 3. build
-            Directory.CreateDirectory("Builds");
-            var opts = new BuildPlayerOptions
+            BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = new[] { ScenePath },
-                locationPathName = "Builds/LovMates.apk",
+                scenes = scenes,
+                locationPathName = OutputPath,
                 target = BuildTarget.Android,
                 options = BuildOptions.None
-            };
-            var report = BuildPipeline.BuildPlayer(opts);
-            bool ok = report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded;
-            Debug.Log(ok ? "APK built: Builds/LovMates.apk" : "APK build FAILED: " + report.summary.result);
-            if (batch) EditorApplication.Exit(ok ? 0 : 1);
+            });
+
+            if (report.summary.result != BuildResult.Succeeded)
+            {
+                throw new System.Exception("Android build fail hua: " + report.summary.result);
+            }
+
+            Debug.Log("APK ban gaya: " + OutputPath);
         }
     }
 }
